@@ -8,60 +8,33 @@ from models import User
 requestpath = '/'
 newhome = '/main/'
 
-def session(request, user):
-    request.session['user'] = {
-        'id' : user.id,
-        'first' : user.first,
-        'last' : user.last,
-        'account' : user.account
-    }
-    return redirect(requestpath)
-
-def sessioncheck(request, action=None):
-    if 'user' in request.session:
-        if request.path == requestpath:
-            return redirect(newhome)
-        elif request.path == requestpath + "admin/" and User.objects.get(account=request.session['user']['account']).admin:
-            context = {"users": User.objects.values('id', 'first', 'last', 'account', 'admin', 'updated_at')}
-            return render(request, 'loginadmin/admin.html', context)
-        elif request.path == requestpath + "logout":
-            request.session.pop('user')
-        else:
-            return action
-    else:
-        if request.path == requestpath:
-            return render(request, 'loginadmin/index.html')
-        # DO NOT USE IN PRODUCTION, exposes admin console:
-        # elif request.path == requestpath + "admin/":
-        #     context = {"users": User.objects.values('id', 'first', 'last', 'account', 'admin', 'updated_at')}
-        #     return render(request, 'loginadmin/admin.html', context)
-    return redirect(requestpath)
-
 def index(request):
-    return sessioncheck(request)
+    if 'user' in request.session:
+        return redirect(newhome)
+    return render(request, 'loginadmin/index.html')
 
 def admin(request):
-    return sessioncheck(request)
+    if 'user' in request.session and User.objects.get(account=request.session['user']['account']).admin:
+        return render(request, 'loginadmin/admin.html', User.objects.displaydata())
+    return redirect(requestpath)
 
 def logout(request):
-	return sessioncheck(request)
+    if 'user' in request.session:
+        request.session.pop('user')
+    return redirect(requestpath)
 
 def register(request):
-    if request.method == "POST":
-        result = User.objects.modelreg(request)
-        if result[0] == True:
-            messages.success(request, "{} created".format(result[1].account))
-        else:
-            for error in result[1]:
-                messages.error(request, result[1][error], extra_tags=error)
+    if 'user' in request.session and request.method == "POST":
+        User.objects.modelreg(request)
     return redirect(requestpath + 'admin/')
 
 def login(request):
     if request.method == "POST":
-        result = User.objects.modellog(request)
-        if result[0] == True:
-            return session(request, result[1])
-        else:
-            for error in result[1]:
-                messages.error(request, result[1][error], extra_tags=error)
+        User.objects.modellog(request)
     return redirect(requestpath)
+
+def deleteuser(request, query_id):
+    if 'user' in request.session and User.objects.get(account=request.session['user']['account']).admin:
+        if query_id != 1:
+            User.objects.get(id=query_id).delete()
+    return redirect(requestpath + 'admin/')

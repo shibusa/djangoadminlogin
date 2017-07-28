@@ -1,0 +1,4 @@
+.DS_Store
+*.pyc
+*/migrations/0*
+db.sqlite3
